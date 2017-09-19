@@ -1,5 +1,7 @@
 <?php
 
+error_reporting(E_ERROR);
+
 require_once('includes/functions.php');
 
 $crack = new pipe();
@@ -22,10 +24,6 @@ switch(true) {
     			break;
 
     		case "download":
-    			header('Content-Description: File Transfer');
-    			header('Content-Type: application/octet-stream');
-    			header('Content-Transfer-Encoding: binary');
-
     			echo $crack->update("download");
     			break;
 
@@ -35,12 +33,11 @@ switch(true) {
     			break;
 
     		case "save":
-    			//die(var_dump($_FILES['json']));
     			echo $crack->config("save", $api['HWID'], $_POST['json']);
     			break;
 
     		default:
-    			echo "Fuck you nigger";
+    			echo "404 action not found";
     	}
     	
     	break;

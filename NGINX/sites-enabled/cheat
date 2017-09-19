@@ -19,6 +19,8 @@ server {
 	include h5bp/basic.conf;
 	include money/basic.conf;
 
+	error_page 403 /index.php;
+
 	location /api_info/hardwareid {
         	rewrite ^/api_info/hardwareid/(.*)/action/(.*) api.php?HWID=$1&action=$2 last;
 	}
