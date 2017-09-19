@@ -1,0 +1,28 @@
+server {
+	listen 80;
+	return 301 https://$host$request_uri;
+}
+
+server {
+	listen 443;
+
+	server_name gameleading.com ;
+
+	root /sites/cheat;
+	index index.html index.htm index.php;
+
+	ssl on;
+	ssl_certificate     /sites/idklolssl/cheat/gameleading-selfsigned.crt;
+    ssl_certificate_key /sites/idklolssl/cheat/gameleading-selfsigned.key;
+
+	# Including misc
+	include h5bp/basic.conf;
+	include money/basic.conf;
+
+	location /api_info/hardwareid {
+        	rewrite ^/api_info/hardwareid/(.*)/action/(.*) api.php?HWID=$1&action=$2 last;
+	}
+
+	error_log /sites/logs/error_log;
+
+}
