@@ -8,12 +8,12 @@ server {
 
 	server_name gameleading.com ;
 
-	root /sites/cheat;
+	root /sites/cheat/public;
 	index index.html index.htm index.php;
 
 	ssl on;
 	ssl_certificate     /sites/idklolssl/cheat/gameleading-selfsigned.crt;
-    ssl_certificate_key /sites/idklolssl/cheat/gameleading-selfsigned.key;
+	ssl_certificate_key /sites/idklolssl/cheat/gameleading-selfsigned.key;
 
 	# Including misc
 	include h5bp/basic.conf;
@@ -22,9 +22,14 @@ server {
 	error_page 403 /index.php;
 
 	location /api_info/hardwareid {
-        	rewrite ^/api_info/hardwareid/(.*)/action/(.*) api.php?HWID=$1&action=$2 last;
+		rewrite ^/api_info/hardwareid/(.*)/action/(.*) api.php?HWID=$1&action=$2 last;
 	}
 
-	error_log /sites/logs/error_log;
+	location /api {
+		rewrite ^/api/(.*)/(.*) api.php?$1=$2 last;
+	}
+
+	error_log /sites/cheat/logs/errors.log;
+	access_log /sites/cheat/logs/access.log;
 
 }
