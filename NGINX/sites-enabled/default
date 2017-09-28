@@ -1,0 +1,6 @@
+server {
+  listen 80;
+  listen 443;
+  server_name 94.23.147.253;
+  return 444;
+}

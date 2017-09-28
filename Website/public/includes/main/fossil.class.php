@@ -16,7 +16,7 @@ class fossil {
 
     // Make use of __DIR__ to make sure we are always getting the correct
     // directory for include.
-    include_once(__DIR__.'/../config.inc.php');
+    include_once (__DIR__.'/../config.inc.php');
     try {
       $this->db = new PDO(HTP_DB, HTP_USER, HTP_PASS);
     } catch (PDOException $e) {
@@ -28,33 +28,38 @@ class fossil {
    * Used for login if we ever need it. Panel is in work.
    * @param string $username (optional)
    * @param string $password (optional)
-   * @return bool
+   * @return string
    */
-  public function userLogin(string $username, string $password): bool {
-    
+  public function userLogin(string $username, string $password): void {
+
     $do =
       $this->db->prepare("SELECT * FROM users WHERE Username = (:username)");
     $do->bindParam(":username", $username);
     $do->execute();
     $result = $do->fetch();
 
-    if (empty($result['Username']) || empty($result['Password']))
-      return FALSE;
+    if (empty($result['Username']) || empty($result['Password'])){
+      header("HTTP/1.1 302 Moved Temporarily");
+      header("Location: ../../../SQU/index.php#fail");
+    }
 
     if (password_verify($password, $result['Password'])) {
       $_SESSION['loggedIn'] = TRUE;
       $_SESSION['username'] = $username;
       $_SESSION['hwid'] = $result['HWID'];
-      return TRUE;
+      header("HTTP/1.1 302 Moved Temporarily");
+      header("Location: ../../../SQU/");
     } else {
-      return FALSE;
+      header("HTTP/1.1 302 Moved Temporarily");
+      header("Location: ../../../SQU/index.php#fail");
     }
 
   }
 
-  public function userLogout(): bool {
+  public function userLogout(): void {
     session_destroy();
-    return TRUE;
+    header("HTTP/1.1 302 Moved Temporarily");
+    header("Location: ../../../SQU/");
   }
 
   /**
@@ -100,7 +105,7 @@ class fossil {
 
         // idk BBQ flavored pringles?
       default:
-        $result['Status'] = NULL;
+        $result['Status'] = 0;
     }
 
     if (!$result['Status'] || time() > $result['Expire']) {
@@ -111,7 +116,7 @@ class fossil {
           "UPDATE users SET Status = (:status) WHERE HWID = (:hwid)",
         );
       $do->bindParam(":hwid", $hwid);
-      $do->bindParam(":status", NULL);
+      $do->bindParam(":status", $result['Status']);
       $do->execute();
 
       // b y e  b y e
@@ -120,6 +125,49 @@ class fossil {
 
     // Everything seems fine, let's return your account information and log your
     // login request, make sure you aren't a dirty account sharing cunt.
+
+
+    $do =
+      $this->db->prepare("UPDATE users SET Password = (:password),
+                            Lastlogin = (:lastlogin),
+                            Lastip = (:lastip) WHERE HWID = (:hwid)");
+    $do->bindParam(":hwid", $hwid);
+    $do->bindParam(":password", password_hash($hwid, PASSWORD_BCRYPT));
+    $do->bindParam(":lastlogin", $time);
+    $do->bindParam(":lastip", $userIP);
+    $do->execute();
+
+    return json_encode(
+      array(
+        "expire" => $result['Expire'],
+        "hwid" => $result['HWID'],
+        "lvl" => $level,
+        "md5_launcher" => "6",
+        "plan_name" => "[FOSSIL] ".$plan_name,
+        "plan" => $result['Plan'],
+        "status" => $result['Status'],
+      ),
+      JSON_PRETTY_PRINT,
+    );
+
+  }
+  /**
+  * Check if the user's ISP matches the last logged in
+  * ISP by comparing ASN.
+  * @param string $hwid
+  * @param string $userIP
+  * @return bool
+  */
+
+  public function userAccountSharing(string $hwid, string $userIP): bool {
+
+    $do = $this->db->prepare("SELECT * FROM users WHERE HWID = (:hwid)");
+    $do->bindParam(":hwid", $hwid);
+    $do->execute();
+    $result = $do->fetch();
+
+    $time = date("D M, Y H:i:s", strtotime("now"));
+    $userAgent = $_SERVER['HTTP_USER_AGENT'] ?: "N/A";
 
     if (geoip_asnum_by_name($result['Lastip']) !=
         geoip_asnum_by_name($userIP)) {
@@ -143,43 +191,19 @@ class fossil {
       $do->bindParam(":Failedip", $Failedip);
       $do->execute();
 
-      return
-        "Sorry, your IP does not match your previous login, contact dad to fix this.";
+      return TRUE;
 
+    } else {
+      return FALSE;
     }
-
-    $do =
-      $this->db
-        ->prepare(
-          "UPDATE users SET Lastlogin = (:lastlogin), Lastip = (:lastip) WHERE HWID = (:hwid)",
-        );
-    $do->bindParam(":hwid", $hwid);
-    $do->bindParam(":lastlogin", $time);
-    $do->bindParam(":lastip", $userIP);
-    $do->execute();
-
-    return json_encode(
-      array(
-        "expire" => $result['Expire'],
-        "hwid" => $result['HWID'],
-        "lvl" => $level,
-        "md5_launcher" => "6",
-        "plan_name" => "[FOSSIL] ".$plan_name,
-        "plan" => $result['Plan'],
-        "status" => $result['Status'],
-      ),
-      JSON_PRETTY_PRINT,
-    );
-
   }
-
   /**
    * Check if there is a new update avaliable.
    * @param string $info
    * @return mixed
    */
 
-  public function update($info): mixed {
+  public function userUpdate($info): mixed {
 
     // TODO: Make this somewhat automated, idk how yet maybe proxy?
     /*
@@ -220,11 +244,12 @@ class fossil {
    * @return string
    */
 
-  public function config(
+  public function userConfig(
     string $action,
     string $hwid,
     string $data = "",
   ): mixed {
+
     // Setting up variables for logging
     $time = date("D M, Y H:i:s", strtotime("now"));
     $userIP = $_SERVER['REMOTE_ADDR'];
@@ -244,7 +269,9 @@ class fossil {
       case "load":
 
         if (empty($result['Config'])) {
-          return file_get_contents($_SERVER["DOCUMENT_ROOT"] . "/assets/default.config.json");
+          return file_get_contents(
+            $_SERVER["DOCUMENT_ROOT"]."/assets/default.config.json",
+          );
         }
         return $result['Config'];
 
@@ -288,9 +315,72 @@ class fossil {
         $do->bindParam(":hwid", $hwid);
         $do->bindParam(":config", $data);
         $do->execute();
+        echo "Config saved";
+        break;
 
-        return "Config saved";
+      case "format":
+        if (empty($result['Config'])) {
+          $result['Config'] = file_get_contents(
+            $_SERVER["DOCUMENT_ROOT"]."/assets/default.config.json",
+          );
+        }
+        $ugly = json_decode($result['Config'], TRUE);
+        $pretty = json_encode(
+          array(
+            "Visuals" => array(
+              "Items" => array(
+                "ItemsEnabled" => $ugly['ItemsEnabled'],
+                "MainWeapon" => $ugly['MainWeapon'],
+                "Attachment" => $ugly['Attachment'],
+                "Armor" => $ugly['Armor'],
+                "Backpack" => $ugly['Backpack'],
+                "Heal" => $ugly['Heal'],
+                "Grenade" => $ugly['Grenade'],
+                "MaxItemdistance" => $ugly['MaxItemdistance'],
+              ),
+              "Players" => array(
+                "PlayersEnabled" => $ugly['PlayersEnabled'],
+                //"PlayerName" => $ugly['PlayerName'],
+                "PlayerDistance" => $ugly['PlayerDistance'],
+                "PlayerHealth" => $ugly['PlayerHealth'],
+                "PlayerSkeleton" => $ugly['PlayerSkeleton'],
+                "DrawTeam" => $ugly['DrawTeam'],
+                "ESPVisibleCheck" => $ugly['ESPVisibleCheck'],
+                "MaxPlayerdistance" => $ugly['MaxPlayerdistance'],
+                "MaxSkeletonDist" => $ugly['MaxSkeletonDist'],
+                "Radar" => array(
+                  "PlayerRadar" => $ugly['PlayerRadar'],
+                  "RadarX" => $ugly['RadarX'],
+                  "RadarY" => $ugly['RadarY'],
+                  "RadarW" => $ugly['RadarW'],
+                ),
+              ),
+              "Misc" => array(
+                "AirDrop" => $ugly['AirDrop'],
+                "Car" => $ugly['Car'],
+                "DeathLoot" => $ugly['DeathLoot'],
+                "MiscDistance" => $ugly['MiscDistance'],
+              ),
+            ),
+            "Aim" => array(
+              "aimEnabled" => $ugly['aimEnabled'],
+              "drawFov" => $ugly['drawFov'],
+              "noSway" => $ugly['noSway'],
+              "aimPredict" => $ugly['aimPredict'],
+              "aimVisibleCheck" => $ugly['aimVisibleCheck'],
+              "aimBone" => $ugly['aimBone'],
+              "aimFov" => $ugly['aimFov'],
+              "aimKey" => $ugly['aimKey'],
+            ),
+            "Settings" => array(
+              "menuKey" => $ugly['menuKey'],
+              "itemKey" => $ugly['itemKey'],
+            ),
+          ),
+          JSON_PRETTY_PRINT,
+        );
 
+        return $pretty;
         break;
 
       default:

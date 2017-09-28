@@ -5,10 +5,10 @@ include_once $_SERVER["DOCUMENT_ROOT"].'/includes/includes.php';
 new loadClasses("main");
 
 $site = new site();
-$crack = new fossil();
+$fossil = new fossil();
 
 // First off all we want headers on top
-$site->header();
+$site->siteHead();
 
 // Not logged in? Just kill it, not giving him anything.
 if (!isset($_SESSION['loggedIn'])) {
@@ -20,14 +20,8 @@ if (!isset($_SESSION['loggedIn'])) {
 $user = $_SESSION['username'];
 $hwid = $_SESSION['hwid'];
 
-echo
-  <body>
-  Hello {$user},
+$site->siteHeader();
 
-  Your config is:
-    <pre>
-    {$crack->config("load", $hwid)}
-    </pre>
-  </body>;
+$site->panelDefault($user, $hwid, $fossil->userConfig("format", $hwid));
 
-$site->logout();
+$site->logoutForm();

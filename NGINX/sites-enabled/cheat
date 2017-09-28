@@ -1,17 +1,12 @@
 server {
-	listen 80;
-	return 301 https://$host$request_uri;
-}
-
-server {
-	listen 443;
-
-	server_name gameleading.com ;
+  listen 80;
+  listen [::]:443 ssl http2;
+  listen 443 ssl http2;
+	server_name gameleading.com fossil.htp.re;
 
 	root /sites/cheat/public;
 	index index.html index.htm index.php;
 
-	ssl on;
 	ssl_certificate     /sites/idklolssl/cheat/gameleading-selfsigned.crt;
 	ssl_certificate_key /sites/idklolssl/cheat/gameleading-selfsigned.key;
 
@@ -21,15 +16,21 @@ server {
 
 	error_page 403 /index.php;
 
-	location /api_info/hardwareid {
-		rewrite ^/api_info/hardwareid/(.*)/action/(.*) api.php?HWID=$1&action=$2 last;
+	location = /api_info2.php {
+		rewrite ^ api.php?$args last;
 	}
 
 	location /api {
 		rewrite ^/api/(.*)/(.*) api.php?$1=$2 last;
 	}
 
+	
+	location /dl/ {
+		internal;
+		root   /sites/cheat/internal;
+	}
+
 	error_log /sites/cheat/logs/errors.log;
 	access_log /sites/cheat/logs/access.log;
-
 }
+

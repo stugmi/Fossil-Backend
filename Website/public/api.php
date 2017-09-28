@@ -2,8 +2,6 @@
 include_once $_SERVER["DOCUMENT_ROOT"].'/includes/includes.php';
 new loadClasses("main");
 
-ob_start();
-
 $crack = new fossil();
 $api = $_GET;
 
@@ -14,19 +12,11 @@ switch (TRUE) {
     switch ($api['panel']) {
 
       case "login":
-        if (!$crack->userLogin($_POST['username'], $_POST['password'])) {
-          header("HTTP/1.0 405 Method Not Allowed");
-          die("Wrong credentials");
-        }
-
-        echo "Successfully logged in";
-        header("Location: ../../SQU/");
+        echo $crack->userLogin($_POST['username'], $_POST['password']);
         break;
 
       case "logout":
-        $crack->userLogout();
-        echo "Successfully logged out";
-        header("Location: ../../SQU/");
+        echo $crack->userLogout();
         break;
 
       default:
@@ -47,20 +37,24 @@ switch (TRUE) {
 
         // update checking
       case "md5":
-        echo $crack->update("md5");
+        echo $crack->userUpdate("md5");
         break;
 
       case "download":
-        echo $crack->update("download");
+        echo $crack->userUpdate("download");
         break;
 
         // Config managment
       case "load":
-        echo $crack->config("load", $api['HWID']);
+        echo $crack->userConfig("load", $api['HWID']);
+        break;
+
+      case "format":
+        echo $crack->userConfig("format", $api['HWID']);
         break;
 
       case "save":
-        echo $crack->config("save", $api['HWID'], $_POST['json']);
+        echo $crack->userConfig("save", $api['HWID'], $_POST['json']);
         break;
 
       default:
