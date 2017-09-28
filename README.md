@@ -39,7 +39,7 @@ nano /sites/cheat/includes/config.inc.php # Edit accordingly
 ### Setting up database
 I've made it simple and included the [scheme.sql](https://i.htp.re/CrackingLife/Fossil-Backend/blob/master/Database/scheme.sql) in here.<br>
 To import just use <br>
-### `commands`
+#### `commands`
 
 ```shell
 mysql -u user -p < scheme.sql
@@ -50,6 +50,19 @@ mysql> source .scheme.sql
 
 ### HHVM
 Be sure to have hh_server watch over the working directory
+
+### `commands`
 ```shell
 hh_server -d /sites/cheat/public/
+```
+
+## Installing dependencies
+
+### Using the get-composer.php 
+### `commands`
+
+```shell
+hhvm composer-setup.php     # Downloads composer.phar if you don't have it
+hhvm composer.phar install #This will install all required dependencies
+hhvm composer.phar update # Update dependencies \\ use this if you have new requirements inside composer.json
 ```
