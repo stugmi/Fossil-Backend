@@ -47,3 +47,9 @@ mysql -u user -p < scheme.sql
 mysql> source .scheme.sql
 
 ```
+
+### HHVM
+Be sure to have hh_server watch over the working directory
+```shell
+hh_server -d /sites/cheat/public/
+```
