@@ -2,7 +2,7 @@
 include_once $_SERVER["DOCUMENT_ROOT"].'/includes/includes.php';
 new loadClasses("main");
 
-$crack = new fossil();
+$fossil = new fossil();
 $api = $_GET;
 
 switch (TRUE) {
@@ -12,11 +12,17 @@ switch (TRUE) {
     switch ($api['panel']) {
 
       case "login":
-        echo $crack->userLogin($_POST['username'], $_POST['password']);
+        if($fossil->userLogin($_POST['username'], $_POST['password'])){
+          header("HTTP/1.1 302 Moved Temporarily");
+          header("Location: ../../../SQU/");
+        } else {
+          header("HTTP/1.1 302 Moved Temporarily");
+          header("Location: ../../../SQU/index.php#fail");
+        }
         break;
 
       case "logout":
-        echo $crack->userLogout();
+        echo $fossil->userLogout();
         break;
 
       default:
@@ -26,40 +32,41 @@ switch (TRUE) {
     }
     break;
 
-  case $api['HWID']:
+  case $api['action']:
 
     switch ($api['action']) {
 
       // User information
-      case "userinfo":
-        echo $crack->userInfo($api['HWID']);
+      case "login":
+        echo $fossil->userInfo($api['usuario'], $api['pwd'], $api['hwid']);
         break;
 
         // update checking
       case "md5":
-        echo $crack->userUpdate("md5");
+        echo $fossil->cheatDownload("md5");
         break;
 
-      case "download":
-        echo $crack->userUpdate("download");
+      case "select_cheat":
+        $fossil->cheatDownload("select_cheat", $api['hwid'], $api['plan']);
         break;
 
         // Config managment
       case "load":
-        echo $crack->userConfig("load", $api['HWID']);
+        echo $fossil->userConfig("load", $api['HWID']);
         break;
 
       case "format":
-        echo $crack->userConfig("format", $api['HWID']);
+        echo $fossil->userConfig("format", $api['HWID']);
         break;
 
       case "save":
-        echo $crack->userConfig("save", $api['HWID'], $_POST['json']);
+        echo $fossil->userConfig("save", $api['HWID'], $_POST['json']);
         break;
 
       default:
         header("HTTP/1.0 405 Method Not Allowed");
         echo "404 action not found";
+        break;
 
     }
     break;
@@ -67,5 +74,6 @@ switch (TRUE) {
   default:
     header("HTTP/1.0 405 Method Not Allowed");
     echo "Ah bah ah, you didn't say magic word";
+    break;
 
 }

@@ -19,97 +19,133 @@ class site {
    * @return void
    */
 
-  public function header(?string $title = "FOSSIL :: Pringles"): void {
-    print
-      (
-       <head>
-         <title>{$title}</title>
-         <link
-           rel="shortcut icon"
-           type="image/png"
-           href="../assets/img/favicon.ico"
+  public function siteHead(?string $title = "FOSSIL :: "): void
+  {
+    print("
+      <head>
+        <title>{$title} {$_SESSION['username']}</title>
+        <link rel='shortcut icon' type='image/png' href='../assets/img/favicon.ico'/>
+        <link href='../../assets/css/main.css' rel='stylesheet' />
+        <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>
+      </head>
+
+      <div id='content'>
+    ");
+  }
+
+  /**
+   * Prints basic header to each page
+   * @param $title (optional) string
+   * @return void
+   */
+
+  public function siteHeader(): void
+  {
+    print("
+      <h1 class='htp'>
+      Welcome <a id='user'>{$_SESSION['username']}</a>
+      </h1>
+    ");
+  }
+
+  /**
+   * Login page and form
+   *
+   * @return void
+   */
+
+  public function loginForm(): void
+  {
+    print("
+     <div id='login'>
+       <form method='post' action='../api/panel/login'>
+         <input type='text' name='username' placeholder='Username...' />
+         <br />
+         <input
+           type='password'
+           name='password'
+           placeholder='Password...'
          />
-         <link href="../../assets/css/main.css" rel="stylesheet" />
-         <script
-           src=
-             "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js">
-         </script>
-       </head>
-      )
-    ;
-  }
-
-  public function loginForm(): void {
-    print
-      (
-       <div id="login">
-         <form method="post" action="../api/panel/login">
-           <input type="text" name="username" placeholder="Username..." />
-           <br />
-           <input
-             type="password"
-             name="password"
-             placeholder="Password..."
-           />
-           <br />
-           <input type="submit" value="Login" />
-         </form>
-       </div>)
-    ;
-  }
-
-  public function logout(): void {
-    print
-      (
-       <form method="post" action="../api/panel/logout">
-         <input type="submit" name="logout" value="Logout" />
+         <br />
+         <input type='submit' value='Login' />
        </form>
-      )
-    ;
+     </div>
+    ");
   }
 
-  public function panelDefault($username, $hwid, $config): void {
+  /**
+   * Logout button, probably doesn't even
+   * need it's own function
+   *
+   * @return void
+   */
+
+  public function logoutForm(): void
+  {
+    print("
+      <div id='logout'>
+        <form  method='post' action='../api/panel/logout'>
+          <input type='submit' name='logout' value='Logout' />
+        </form>
+      </div>
+    ");
+  }
+
+  /**
+   * The amazing web-based config editor that i spent
+   * way too long making, amazing this is.
+   * @param string $username
+   * @param string $hwid
+   * @param string $config
+   * @return mixed
+   */
+  public function panelDefault(string $username, string $hwid, string $config): mixed
+  {
     $config = json_decode($config, TRUE);
-
-    print ('<div id="content">');
-    print
-      (
-       <h1 class="htp">
-         Welcome <a id="user">{$username}</a>
-       </h1>
-      )
-    ;
-
-    print
-      ("<div id='config'>
-    <h2> Config Editor </h2>
-    <form action='../api_info/hardwareid/{$hwid}/action/save' method='post' id='configPost'>")
-    ;
+    print("
+      <div id='config'>
+        <h2> Config Editor </h2>
+        <form action='../api_info/hardwareid/{$hwid}/action/save' method='post' id='configPost'>
+    ");
 
     foreach ($config as $cat => $cats) {
 
       // Hitting each main category (Visual, Aim, Settings)
-      print
-        ("<div class='header' id='$cat'><i class='arrow down' id='$cat'></i><a> $cat </a></div>")
-      ;
-      print ("<div id='{$cat}Tab' class='main-cat'>");
+      print("
+        <div class='header' id='{$cat}'>
+          <i class='arrow down' id='$cat'></i><a>{$cat}</a>
+        </div>
+        ");
+
+      print ("
+        <div id='{$cat}Tab'
+        class='main-cat'>
+      ");
       foreach ($cats as $cat2 => $settings) {
 
         // Hitting sub categories (Items, Players, Misc)
         if (is_array($settings)) {
 
-          print
-            ("<div class='header' id='$cat2'><i class='arrow down' id='$cat2'></i><a> $cat2 </a></div>")
-          ;
+          print("
+            <div class='header' id='$cat2'>
+              <i class='arrow down' id='$cat2'>
+              </i><a> $cat2 </a>
+            </div>
+          ");
+
           print ("<div id='{$cat2}Tab' class='sub-cat'>");
           foreach ($settings as $cat3 => $settings) {
 
             // Hitting Sub Sub category if there is one (looking at you radar you fucking spastic)
             if (is_array($settings)) {
 
-              print
-                ("<div class='header' id='$cat3'><i class='arrow down' id='$cat3'></i><a> $cat3 </a></div>")
-              ;
+              print("
+                <div class='header' id='$cat3'>
+                  <i class='arrow down' id='$cat3'></i>
+                  <a> $cat3 </a>
+                </div>
+              ");
+
               print ("<div id='{$cat3}Tab' class='submissive-as-fuck-cat'>");
               foreach ($settings as $cat4 => $settings) {
                 if (is_bool($settings)) {
@@ -118,16 +154,18 @@ class site {
                   } else {
                     $settings = "";
                   }
-                  print
-                    ("<input type='checkbox' class='styled-checkbox'id='{$cat4}' name='{$cat4}' $settings>
-                      <label for='{$cat4}'>{$cat4}</label></br>")
-                  ;
+                  print("
+                    <input type='checkbox' class='styled-checkbox'id='{$cat4}' name='{$cat4}' $settings>
+                    <label for='{$cat4}'>{$cat4}</label>
+                    </br>
+                  ");
                 } else {
-                  print
-                    ("<input max='1000' type='range' name='{$cat4}' value='{$settings}' class='sliders' oninput='$(\"#{$cat4}Out\").val(parseInt(this.value))'>
-                        <output id='{$cat4}Out'>{$settings}</output>
-                        <label>{$cat4}</label></br>")
-                  ;
+                  print("
+                    <input max='1000' type='range' name='{$cat4}' value='{$settings}' class='sliders' oninput='$(\"#{$cat4}Out\").val(parseInt(this.value))'>
+                    <output id='{$cat4}Out'>{$settings}</output>
+                    <label>{$cat4}</label>
+                    </br>
+                  ");
                 }
               }
               print ("</div>");
@@ -139,16 +177,17 @@ class site {
                 } else {
                   $settings = "";
                 }
-                print
-                  ("<input type='checkbox' class='styled-checkbox'id='{$cat3}' name='{$cat3}' $settings>
-                    <label for='{$cat3}'>{$cat3}</label></br>")
-                ;
+                print("
+                  <input type='checkbox' class='styled-checkbox'id='{$cat3}' name='{$cat3}' $settings>
+                  <label for='{$cat3}'>{$cat3}</label>
+                  </br>
+                ");
               } else {
-                print
-                  ("<input max='1000' type='range' name='{$cat3}' value='{$settings}' class='sliders' oninput='$(\"#{$cat3}Out\").val(parseInt(this.value))'>
-                      <output id='{$cat3}Out'>{$settings}</output>
-                      <label>{$cat3}</label></br>")
-                ;
+                print("
+                  <input max='1000' type='range' name='{$cat3}' value='{$settings}' class='sliders' oninput='$(\"#{$cat3}Out\").val(parseInt(this.value))'>
+                  <output id='{$cat3}Out'>{$settings}</output>
+                  <label>{$cat3}</label></br>
+                ");
               }
             }
           }
@@ -161,31 +200,31 @@ class site {
             } else {
               $settings = "";
             }
-            print
-              ("<input type='checkbox' class='styled-checkbox'id='{$cat2}' name='{$cat2}' $settings>
-                <label for='{$cat2}'>{$cat2}</label></br>")
-            ;
+            print("
+              <input type='checkbox' class='styled-checkbox'id='{$cat2}' name='{$cat2}' $settings>
+              <label for='{$cat2}'>{$cat2}</label>
+              </br>
+            ");
           } else {
-            print
-              ("<input max='1000' type='range' name='{$cat2}' value='{$settings}' class='sliders' oninput='$(\"#{$cat2}Out\").val(parseInt(this.value))'>
-                  <output id='{$cat2}Out'>{$settings}</output>
-                  <label>{$cat2}</label></br>")
-            ;
-            ;
+            print("
+              <input max='1000' type='range' name='{$cat2}' value='{$settings}' class='sliders' oninput='$(\"#{$cat2}Out\").val(parseInt(this.value))'>
+              <output id='{$cat2}Out'>{$settings}</output>
+              <label>{$cat2}</label>
+              </br>
+            ");
           }
         }
       }
       print ("</div></form>");
     }
-
-    print ('</div></div>
-    <script>
-    $(".header").click(function(e){
-        $("div#" + e.target.closest("div").id + "Tab").toggle();
-        $("i#" + e.target.closest("div").id ).toggleClass("right down");
-      });
-    </script>
+    print("</div></div>");
+    print ('
+      <script>
+      $(".header").click(function(e){
+          $("div#" + e.target.closest("div").id + "Tab").toggle();
+          $("i#" + e.target.closest("div").id ).toggleClass("right down");
+        });
+      </script>
     ');
-
   }
 }

@@ -1,4 +1,5 @@
 <?hh
+use GeoIp2\Database\Reader;
 
 /**
  * Class to handle almost if not everything regarding users of this service
@@ -9,13 +10,16 @@
  * @copyright never
  */
 
-class fossil {
+class fossil
+{
 
+  /**
+   * Once class is used, make sure we have DB connection.
+   * @return void
+   */
   private $db;
-  public function __construct() {
-
-    // Make use of __DIR__ to make sure we are always getting the correct
-    // directory for include.
+  public function __construct(): void
+  {
     include_once (__DIR__.'/../config.inc.php');
     try {
       $this->db = new PDO(HTP_DB, HTP_USER, HTP_PASS);
@@ -26,11 +30,13 @@ class fossil {
 
   /**
    * Used for login if we ever need it. Panel is in work.
-   * @param string $username (optional)
-   * @param string $password (optional)
-   * @return string
+   * @param string $username
+   * @param string $password
+   * @param ?bool $panel (optional)
+   * @return bool
    */
-  public function userLogin(string $username, string $password): void {
+  public function userLogin(string $username, string $password, bool $panel = TRUE): bool
+  {
 
     $do =
       $this->db->prepare("SELECT * FROM users WHERE Username = (:username)");
@@ -38,25 +44,39 @@ class fossil {
     $do->execute();
     $result = $do->fetch();
 
-    if (empty($result['Username']) || empty($result['Password'])){
-      header("HTTP/1.1 302 Moved Temporarily");
-      header("Location: ../../../SQU/index.php#fail");
+    if (empty($result['Username'])){
+      return FALSE;
+    }
+
+    // If user doesn't have a password but exist, set the password.
+    if(empty($result['Password'])){
+      $do = $this->db->prepare("UPDATE users SET Password = (:password) WHERE Username = (:username)");
+      $do->bindParam(":username", $username);
+      $do->bindParam(":password", password_hash($password, PASSWORD_BCRYPT));
+      $do->execute();
+      return TRUE;
     }
 
     if (password_verify($password, $result['Password'])) {
-      $_SESSION['loggedIn'] = TRUE;
-      $_SESSION['username'] = $username;
-      $_SESSION['hwid'] = $result['HWID'];
-      header("HTTP/1.1 302 Moved Temporarily");
-      header("Location: ../../../SQU/");
+
+      // Dumb check for when the config wants to use it.
+      if($panel){
+        $_SESSION['loggedIn'] = TRUE;
+        $_SESSION['username'] = $username;
+        $_SESSION['hwid'] = "N/A" ?: $result['HWID'];
+
+        return TRUE;
+      }
+      return TRUE;
+
     } else {
-      header("HTTP/1.1 302 Moved Temporarily");
-      header("Location: ../../../SQU/index.php#fail");
+      return FALSE;
     }
 
   }
 
-  public function userLogout(): void {
+  public function userLogout(): void
+  {
     session_destroy();
     header("HTTP/1.1 302 Moved Temporarily");
     header("Location: ../../../SQU/");
@@ -64,14 +84,20 @@ class fossil {
 
   /**
    * Validate a user's HWID, if active return level of access.
+   * @param string $username
+   * @param string $password
    * @param string $hwid
    * @return mixed
    */
 
-  public function userInfo(string $hwid): string {
+  public function userInfo(string $username, string $password, string $hwid): string
+  {
 
-    $do = $this->db->prepare("SELECT * FROM users WHERE HWID = (:hwid)");
-    $do->bindParam(":hwid", $hwid);
+    // Verify that the account exist first
+    $this->userLogin($username, $password, FALSE);
+
+    $do = $this->db->prepare("SELECT * FROM users WHERE Username = (:username)");
+    $do->bindParam(":username", $username);
     $do->execute();
     $result = $do->fetch();
 
@@ -82,8 +108,13 @@ class fossil {
     $plan_name = "";
     $level = "";
 
-    if (empty($result['Lastip'])) {
-      $result['Lastip'] = $userIP;
+    // for new users
+    if(!$result['HWID']){
+      $result['HWID'] = $hwid;
+    }
+
+    if(!$result['lastIP']){
+      $result['lastIP'] = $userIP;
     }
 
     // We real big Pringles lovers here, which one is your favorite?
@@ -96,16 +127,17 @@ class fossil {
         $level = "1";
         break;
 
-        // Hotboy Sour Cream & Onion flavour ( ESP, Aimbot with preidciton, everything you'd want )
+      // Hotboy Sour Cream & Onion flavour ( ESP, Aimbot with preidciton, everything you'd want )
       case "2":
         $plan_name = "Sour Cream & Onion";
         $result['Plan'] = "11";
         $level = "2";
         break;
 
-        // idk BBQ flavored pringles?
+      // idk BBQ flavored pringles?
       default:
         $result['Status'] = 0;
+        break;
     }
 
     if (!$result['Status'] || time() > $result['Expire']) {
@@ -125,12 +157,19 @@ class fossil {
 
     // Everything seems fine, let's return your account information and log your
     // login request, make sure you aren't a dirty account sharing cunt.
-
+    if($this->userAccountSharing($hwid, $userIP) === TRUE){
+      return header("Status: 403 Account sharing detected and logged please contact us to unlock your account");
+    }
 
     $do =
-      $this->db->prepare("UPDATE users SET Password = (:password),
+      $this->db->prepare("UPDATE users SET
+                            Password = (:password),
                             Lastlogin = (:lastlogin),
-                            Lastip = (:lastip) WHERE HWID = (:hwid)");
+                            Lastip = (:lastip),
+                            HWID = (:hwid)
+                          WHERE Username = (:username)
+                        ");
+    $do->bindParam(":username", $username);
     $do->bindParam(":hwid", $hwid);
     $do->bindParam(":password", password_hash($hwid, PASSWORD_BCRYPT));
     $do->bindParam(":lastlogin", $time);
@@ -139,15 +178,18 @@ class fossil {
 
     return json_encode(
       array(
-        "expire" => $result['Expire'],
+        "launcher_version" => "10",
         "hwid" => $result['HWID'],
-        "lvl" => $level,
-        "md5_launcher" => "6",
-        "plan_name" => "[FOSSIL] ".$plan_name,
-        "plan" => $result['Plan'],
-        "status" => $result['Status'],
-      ),
-      JSON_PRETTY_PRINT,
+        "plans" => array(
+            //  TODO: Adding support for multiple plans
+            array(
+            $result['Plan'],
+            "[FOSSIL] ".$plan_name,
+            (int) $result['Expire']
+          ),
+        ),
+        "status" => $result['Status']
+      ), JSON_PRETTY_PRINT
     );
 
   }
@@ -156,33 +198,36 @@ class fossil {
   * ISP by comparing ASN.
   * @param string $hwid
   * @param string $userIP
-  * @return bool
+  * @return bool TRUE if sharing
   */
 
-  public function userAccountSharing(string $hwid, string $userIP): bool {
+  public function userAccountSharing(string $hwid, string $userIP): bool
+  {
 
     $do = $this->db->prepare("SELECT * FROM users WHERE HWID = (:hwid)");
     $do->bindParam(":hwid", $hwid);
     $do->execute();
     $result = $do->fetch();
 
+    if(!$result['HWID']){
+      return FALSE;
+    }
+
     $time = date("D M, Y H:i:s", strtotime("now"));
     $userAgent = $_SERVER['HTTP_USER_AGENT'] ?: "N/A";
-
-    if (geoip_asnum_by_name($result['Lastip']) !=
-        geoip_asnum_by_name($userIP)) {
+    if (file_get_contents("http://ipinfo.io/" . $result['Lastip'] . "/org")
+        !== file_get_contents("http://ipinfo.io/" . $userIP . "/org")) {
 
       $Failedip = json_encode(
         array(
           "Date" => $time,
           "IP Adress" => $userIP,
-          "Username" => $result['username'],
+          "Username" => $result['Username'],
           "HWID" => $result['HWID'],
           "User-Agent" => $_SERVER['HTTP_USER_AGENT'],
         ),
         JSON_PRETTY_PRINT,
       );
-
       $do =
         $this->db->prepare(
           "UPDATE users SET Failedip = (:Failedip) WHERE HWID = (:hwid)",
@@ -191,47 +236,55 @@ class fossil {
       $do->bindParam(":Failedip", $Failedip);
       $do->execute();
 
-      return TRUE;
-
-    } else {
-      return FALSE;
+      return TRUE;    //  User is sharing
+    } else {         // else
+      return FALSE; // User isnt sharing
     }
   }
   /**
    * Check if there is a new update avaliable.
-   * @param string $info
+   * @param string $action
+   * @param string $hwid
+   * @param string $plan
    * @return mixed
    */
 
-  public function userUpdate($info): mixed {
+  public function cheatDownload(string $action, string $hwid, string $plan = ""): mixed
+  {
 
+
+
+    return "Imgay";
     // TODO: Make this somewhat automated, idk how yet maybe proxy?
-    /*
      $context  = stream_context_set_default(
-     array(
-     'http'=>array(
-     'proxy' => "tcp://$PROXY_HOST:$PROXY_PORT", // JIRX's proxy
-     'request_fulluri' => true,
-     'header' =>'Proxy-Authorization: Basic ' . base64_encode('username'.':'.'userpass')
-     )
-     )
+       array(
+         'http'=>array(
+           'proxy' => "82.131.46.130:8888", // JIRX's proxy
+           'request_fulluri' => true
+         )
+       )
      );
-     */
 
-    switch ($info) {
-      case "md5":
-        return "24ba961e78869bb69dfa18219a387ee2"; // Until jirx fies
-        //file_get_contents("https://85.253.210.228/api_info/hardwareid/67a6be7105064ed7bb6933dc40cce4e2/action/md5");
-        break;
+    switch ($action) {
 
-      case "download":
-        header("x-accel-redirect: /assets/bins/stream/update6.dll");
+      case "select_cheat":
         // Until jirx fies
-        // file_get_contents("https://85.253.210.228/api_info/hardwareid/67a6be7105064ed7bb6933dc40cce4e2/action/download");
+        file_put_contents("/sites/cheat/internal/dl/jirx_download.dll",
+          file_get_contents("https://fossil.htp.re/assets/bins/stream/lol.json")
+        );
+
+        //header("Content-Disposition: attachment; filename='GLPUBG.dll'");
+        //header("x-accel-redirect: /dl/GLPUBG.dll");
         break;
+
+      case "download_launcher":
+        return "loldongs";
+        break;
+
 
       default:
         echo "Hmm, something seems to be missing here...";
+        break;
     }
 
   }
@@ -244,11 +297,8 @@ class fossil {
    * @return string
    */
 
-  public function userConfig(
-    string $action,
-    string $hwid,
-    string $data = "",
-  ): mixed {
+  public function userConfig(string $action, string $hwid, string $data = ""): mixed
+  {
 
     // Setting up variables for logging
     $time = date("D M, Y H:i:s", strtotime("now"));
@@ -385,8 +435,20 @@ class fossil {
 
       default:
         echo "Hmm, something seems to be missing here...";
+        break;
 
     }
 
   }
+
+  /**
+   * Translates the config for better viewing on editor
+   * @param string $info
+   * @return mixed
+   */
+
+   public function configTranslate(string $key): mixed
+   {
+     $pretty_names = array();
+   }
 }

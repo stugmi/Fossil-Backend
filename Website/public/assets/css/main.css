@@ -73,6 +73,10 @@ h1,h2,h3 {
   width: 100%;
 }
 
+.header:hover {
+  background-color: #2e2d2f;
+}
+
 i {
   border: solid #c3c2c8;
   border-width: 0 3px 3px 0;
@@ -89,6 +93,12 @@ i {
 .right {
     transform: rotate(-45deg);
     -webkit-transform: rotate(-45deg);
+}
+
+#logout {
+  top: 15px;
+  left: 15px;
+  position: fixed;
 }
 
 #login {
