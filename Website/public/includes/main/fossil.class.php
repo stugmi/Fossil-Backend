@@ -122,14 +122,14 @@ class fossil
 
       // Normie Pringles Originals flavour ( ESP only )
       case "1":
-        $plan_name = "Originals";
+        $plan_name = "[PUBG] Valhalla LVL 1";
         $result['Plan'] = "3";
         $level = "1";
         break;
 
       // Hotboy Sour Cream & Onion flavour ( ESP, Aimbot with preidciton, everything you'd want )
       case "2":
-        $plan_name = "Sour Cream & Onion";
+        $plan_name = "[PUBG] Valhalla LVL 2";
         $result['Plan'] = "11";
         $level = "2";
         break;
@@ -184,7 +184,7 @@ class fossil
             //  TODO: Adding support for multiple plans
             array(
             $result['Plan'],
-            "[FOSSIL] ".$plan_name,
+            "[PUBG] ".$plan_name,
             (int) $result['Expire']
           ),
         ),
@@ -193,6 +193,64 @@ class fossil
     );
 
   }
+
+  public function userPlan(string $action, string $hwid): string
+  {
+
+    $do = $this->db->prepare("SELECT * FROM users WHERE HWID = (:hwid)");
+    $do->bindParam(":hwid", $hwid);
+    $do->execute();
+    $result = $do->fetch();
+
+    // Making sure this is setup before php freaks out
+    $time = date("D M, Y H:i:s", strtotime("now"));
+    $userIP = $_SERVER['REMOTE_ADDR'];
+    $userAgent = $_SERVER['HTTP_USER_AGENT'] ?: "N/A";
+    $plan_name = "";
+    $level = "";
+
+    // We real big Pringles lovers here, which one is your favorite?
+    switch ($result['Plan']) {
+
+      // Normie Pringles Originals flavour ( ESP only )
+      case "1":
+        $plan_name = "[PUBG] Valhalla LVL 1";
+        $result['Plan'] = "3";
+        $level = "1";
+        break;
+
+      // Hotboy Sour Cream & Onion flavour ( ESP, Aimbot with preidciton, everything you'd want )
+      case "2":
+        $plan_name = "[PUBG] Valhalla LVL 2";
+        $result['Plan'] = "11";
+        $level = "2";
+        break;
+      }
+
+    if (!$result['Status'] || time() > $result['Expire']) {
+
+      // This nerd expired, throw him out.
+      $do =
+        $this->db->prepare(
+          "UPDATE users SET Status = (:status) WHERE HWID = (:hwid)",
+        );
+      $do->bindParam(":hwid", $hwid);
+      $do->bindParam(":status", $result['Status']);
+      $do->execute();
+
+      // b y e  b y e
+      return "Bruh, this nerd isn't on the list.";
+	}
+
+    return json_encode(
+      array(
+        "plan_name" => "".$plan_name,
+        "lvl" => "".$level,
+        "expire" => $result['Expire']
+      ), JSON_PRETTY_PRINT
+    );
+  }
+
   /**
   * Check if the user's ISP matches the last logged in
   * ISP by comparing ASN.
@@ -254,7 +312,6 @@ class fossil
 
 
 
-    return "Imgay";
     // TODO: Make this somewhat automated, idk how yet maybe proxy?
      $context  = stream_context_set_default(
        array(
@@ -268,13 +325,9 @@ class fossil
     switch ($action) {
 
       case "select_cheat":
-        // Until jirx fies
-        file_put_contents("/sites/cheat/internal/dl/jirx_download.dll",
-          file_get_contents("https://fossil.htp.re/assets/bins/stream/lol.json")
-        );
 
-        //header("Content-Disposition: attachment; filename='GLPUBG.dll'");
-        //header("x-accel-redirect: /dl/GLPUBG.dll");
+        header("Content-Disposition: attachment; filename='GLPUBG.dll'");
+        header("x-accel-redirect: /dl/GLPUBG.dll");
         break;
 
       case "download_launcher":
