@@ -42,8 +42,8 @@ switch (TRUE) {
         break;
 
         // update checking
-      case "md5":
-        echo $fossil->cheatDownload("md5");
+      case "check_plan":
+        echo $fossil->userPlan("check_plan", $api['hwid']);
         break;
 
       case "select_cheat":
