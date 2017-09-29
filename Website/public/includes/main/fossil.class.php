@@ -184,7 +184,7 @@ class fossil
             //  TODO: Adding support for multiple plans
             array(
             $result['Plan'],
-            "[PUBG] ".$plan_name,
+            "".$plan_name,
             (int) $result['Expire']
           ),
         ),
