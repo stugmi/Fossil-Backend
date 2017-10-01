@@ -50,6 +50,7 @@ class fossil
 
     // If user doesn't have a password but exist, set the password.
     if(empty($result['Password'])){
+      $password = $result['Password'];
       $do = $this->db->prepare("UPDATE users SET Password = (:password) WHERE Username = (:username)");
       $do->bindParam(":username", $username);
       $do->bindParam(":password", password_hash($password, PASSWORD_BCRYPT));
@@ -75,84 +76,79 @@ class fossil
 
   }
 
-  public function userLogout(): void
-  {
-    session_destroy();
-    header("HTTP/1.1 302 Moved Temporarily");
-    header("Location: ../../../SQU/");
-  }
-
   /**
-   * Validate a user's HWID, if active return level of access.
+   * Validate a user, if active return level of access.
    * @param string $username
    * @param string $password
    * @param string $hwid
    * @return mixed
    */
-
-  public function userInfo(string $username, string $password, string $hwid): string
+  public function cheatLogin(string $username, string $password, string $hwid): string
   {
-
     // Verify that the account exist first
     $this->userLogin($username, $password, FALSE);
+    $do =
+      $this->db // still not working completly but we are getting further
+        ->prepare(" SELECT
+                      users.id         AS id,
+                      users.username   AS username,
+                    	users.password   AS password,
+                    	users.admin      AS admin,
+                    	users.status     AS status,
+                    	users.hwid       AS hwid,
+                    	users.config     AS config,
+                    	users.lastip     AS lastip,
+                      cheats.plan_id   AS plan_id,
+                    	cheats.plan_name AS plan_name,
+                    	cheats.plan_game AS plan_game,
+                    	plans.expire     AS expire
+                    FROM
+                      users
+                    INNER JOIN plans  ON plans.user_id = users.id
+                    INNER JOIN cheats ON plans.plan_id = cheats.plan_id
+                    WHERE
+                    	users.username = (:username)
+                ");
 
-    $do = $this->db->prepare("SELECT * FROM users WHERE Username = (:username)");
     $do->bindParam(":username", $username);
     $do->execute();
     $result = $do->fetch();
 
     // Making sure this is setup before php freaks out
     $time = date("D M, Y H:i:s", strtotime("now"));
-    $userIP = $_SERVER['REMOTE_ADDR'];
+    $userIP = inet_pton($_SERVER['REMOTE_ADDR']);
     $userAgent = $_SERVER['HTTP_USER_AGENT'] ?: "N/A";
-    $plan_name = "";
-    $level = "";
+    $plans = array();
+
+    foreach($result as $plan){
+      array_push($plans,
+                 $plan['plan_id'],
+                 $plan['plan_name'],
+                 $plan['expire']
+                );
+    }
 
     // for new users
-    if(!$result['HWID']){
-      $result['HWID'] = $hwid;
+    if(!$result['0']['hwid']){
+      $result['0']['hwid'] = $hwid;
     }
 
-    if(!$result['lastIP']){
-      $result['lastIP'] = $userIP;
+    if(!$result['0']['lastip']){
+      $result['0']['lastip'] = $userIP;
     }
 
-    // We real big Pringles lovers here, which one is your favorite?
-    switch ($result['Plan']) {
-
-      // Normie Pringles Originals flavour ( ESP only )
-      case "1":
-        $plan_name = "[PUBG] Valhalla LVL 1";
-        $result['Plan'] = "3";
-        $level = "1";
-        break;
-
-      // Hotboy Sour Cream & Onion flavour ( ESP, Aimbot with preidciton, everything you'd want )
-      case "2":
-        $plan_name = "[PUBG] Valhalla LVL 2";
-        $result['Plan'] = "11";
-        $level = "2";
-        break;
-
-      // idk BBQ flavored pringles?
-      default:
-        $result['Status'] = 0;
-        break;
-    }
-
-    if (!$result['Status'] || time() > $result['Expire']) {
-
-      // This nerd expired, throw him out.
+    if (!$result['0']['plan_id'] || time() > $result['0']['expire']) {
+      // This nerd expired or got no cheat, throw him out.
       $do =
         $this->db->prepare(
-          "UPDATE users SET Status = (:status) WHERE HWID = (:hwid)",
+          "UPDATE users SET status = (:status) WHERE id = (:id)",
         );
-      $do->bindParam(":hwid", $hwid);
-      $do->bindParam(":status", $result['Status']);
+      $do->bindParam(":id", $result['0']['id']);
+      $do->bindParam(":status", $result['0']['status']);
       $do->execute();
 
       // b y e  b y e
-      return "Bruh, this nerd isn't on the list.";
+      return "It says 'do not let inn' on my paper, guess that means you're not getting in. b y e  b y e nerd ";
     }
 
     // Everything seems fine, let's return your account information and log your
@@ -163,15 +159,15 @@ class fossil
 
     $do =
       $this->db->prepare("UPDATE users SET
-                            Password = (:password),
-                            Lastlogin = (:lastlogin),
-                            Lastip = (:lastip),
-                            HWID = (:hwid)
-                          WHERE Username = (:username)
+                            password = (:password),
+                            lastlogin = (:lastlogin),
+                            lastip = (:lastip),
+                            hwid = (:hwid)
+                          WHERE id = (:id)
                         ");
-    $do->bindParam(":username", $username);
+    $do->bindParam(":id", $result['0']['id']);
     $do->bindParam(":hwid", $hwid);
-    $do->bindParam(":password", password_hash($hwid, PASSWORD_BCRYPT));
+    $do->bindParam(":password", password_hash($password, PASSWORD_BCRYPT));
     $do->bindParam(":lastlogin", $time);
     $do->bindParam(":lastip", $userIP);
     $do->execute();
@@ -179,76 +175,12 @@ class fossil
     return json_encode(
       array(
         "launcher_version" => "10",
-        "hwid" => $result['HWID'],
-        "plans" => array(
-            //  TODO: Adding support for multiple plans
-            array(
-            $result['Plan'],
-            "".$plan_name,
-            (int) $result['Expire']
-          ),
-        ),
-        "status" => $result['Status']
+        "hwid" => $result['0']['hwid'],
+        "plans" => $plans,
+        "status" => $result['0']['Status']
       ), JSON_PRETTY_PRINT
     );
 
-  }
-
-  public function userPlan(string $action, string $hwid): string
-  {
-
-    $do = $this->db->prepare("SELECT * FROM users WHERE HWID = (:hwid)");
-    $do->bindParam(":hwid", $hwid);
-    $do->execute();
-    $result = $do->fetch();
-
-    // Making sure this is setup before php freaks out
-    $time = date("D M, Y H:i:s", strtotime("now"));
-    $userIP = $_SERVER['REMOTE_ADDR'];
-    $userAgent = $_SERVER['HTTP_USER_AGENT'] ?: "N/A";
-    $plan_name = "";
-    $level = "";
-
-    // We real big Pringles lovers here, which one is your favorite?
-    switch ($result['Plan']) {
-
-      // Normie Pringles Originals flavour ( ESP only )
-      case "1":
-        $plan_name = "[PUBG] Valhalla LVL 1";
-        $result['Plan'] = "3";
-        $level = "1";
-        break;
-
-      // Hotboy Sour Cream & Onion flavour ( ESP, Aimbot with preidciton, everything you'd want )
-      case "2":
-        $plan_name = "[PUBG] Valhalla LVL 2";
-        $result['Plan'] = "11";
-        $level = "2";
-        break;
-      }
-
-    if (!$result['Status'] || time() > $result['Expire']) {
-
-      // This nerd expired, throw him out.
-      $do =
-        $this->db->prepare(
-          "UPDATE users SET Status = (:status) WHERE HWID = (:hwid)",
-        );
-      $do->bindParam(":hwid", $hwid);
-      $do->bindParam(":status", $result['Status']);
-      $do->execute();
-
-      // b y e  b y e
-      return "Bruh, this nerd isn't on the list.";
-	}
-
-    return json_encode(
-      array(
-        "plan_name" => "".$plan_name,
-        "lvl" => "".$level,
-        "expire" => $result['Expire']
-      ), JSON_PRETTY_PRINT
-    );
   }
 
   /**
@@ -258,7 +190,6 @@ class fossil
   * @param string $userIP
   * @return bool TRUE if sharing
   */
-
   public function userAccountSharing(string $hwid, string $userIP): bool
   {
 
@@ -267,13 +198,13 @@ class fossil
     $do->execute();
     $result = $do->fetch();
 
-    if(!$result['HWID']){
-      return FALSE;
-    }
+    // Convert binary to IP from DB
+    $userIP = inet_ntop($userIP);
+    $lastIP = inet_ntop($result['Lastip']);
 
     $time = date("D M, Y H:i:s", strtotime("now"));
     $userAgent = $_SERVER['HTTP_USER_AGENT'] ?: "N/A";
-    if (file_get_contents("http://ipinfo.io/" . $result['Lastip'] . "/org")
+    if (file_get_contents("http://ipinfo.io/" . $lastIP . "/org")
         !== file_get_contents("http://ipinfo.io/" . $userIP . "/org")) {
 
       $Failedip = json_encode(
@@ -311,6 +242,7 @@ class fossil
   {
 
 
+    /*
 
     // TODO: Make this somewhat automated, idk how yet maybe proxy?
      $context  = stream_context_set_default(
@@ -321,6 +253,9 @@ class fossil
          )
        )
      );
+
+     */
+
 
     switch ($action) {
 

@@ -7,9 +7,6 @@ new loadClasses("main");
 $site = new site();
 $fossil = new fossil();
 
-// First off all we want headers on top
-$site->siteHead();
-
 // Not logged in? Just kill it, not giving him anything.
 if (!isset($_SESSION['loggedIn'])) {
   $site->loginForm();
@@ -20,8 +17,7 @@ if (!isset($_SESSION['loggedIn'])) {
 $user = $_SESSION['username'];
 $hwid = $_SESSION['hwid'];
 
+$site->siteHead();
 $site->siteHeader();
-
 $site->panelDefault($user, $hwid, $fossil->userConfig("format", $hwid));
-
 $site->logoutForm();

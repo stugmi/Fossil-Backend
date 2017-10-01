@@ -12,7 +12,7 @@ switch (TRUE) {
     switch ($api['panel']) {
 
       case "login":
-        if($fossil->userLogin($_POST['username'], $_POST['password'])){
+        if ($fossil->userLogin($_POST['username'], $_POST['password'])) {
           header("HTTP/1.1 302 Moved Temporarily");
           header("Location: ../../../SQU/");
         } else {
@@ -38,12 +38,12 @@ switch (TRUE) {
 
       // User information
       case "login":
-        echo $fossil->userInfo($api['usuario'], $api['pwd'], $api['hwid']);
+        echo $fossil->cheatLogin($api['usuario'], $api['pwd'], $api['hwid']);
         break;
 
         // update checking
-      case "check_plan":
-        echo $fossil->userPlan("check_plan", $api['hwid']);
+      case "download_launcher":
+        echo $fossil->cheatDownload("md5");
         break;
 
       case "select_cheat":
@@ -52,15 +52,15 @@ switch (TRUE) {
 
         // Config managment
       case "load":
-        echo $fossil->userConfig("load", $api['HWID']);
+        echo $fossil->userConfig("load", $api['hwid']);
         break;
 
       case "format":
-        echo $fossil->userConfig("format", $api['HWID']);
+        echo $fossil->userConfig("format", $api['hwid']);
         break;
 
       case "save":
-        echo $fossil->userConfig("save", $api['HWID'], $_POST['json']);
+        echo $fossil->userConfig("save", $api['hwid'], $_POST['json']);
         break;
 
       default:
