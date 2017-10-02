@@ -5,7 +5,7 @@ server {
 	server_name gameleading.com fossil.htp.re;
 
 	root /sites/cheat/public;
-	index index.html index.htm index.php;
+	index index.html index.htm index.hh;
 
 	ssl_certificate     /sites/idklolssl/cheat/gameleading-selfsigned.crt;
 	ssl_certificate_key /sites/idklolssl/cheat/gameleading-selfsigned.key;
@@ -14,17 +14,20 @@ server {
 	include h5bp/basic.conf;
 	include money/basic.conf;
 
-	error_page 403 /index.php;
+  location ~ \.(php)$ {
+    rewrite ^(.*)\.php$ $1.hh last;
+  }
 
-	location = /api_info2.php {
+	error_page 403 /index.hh;
+
+	location = /api_info2.hh {
 		rewrite ^ api.php?$args last;
 	}
 
 	location /api {
-		rewrite ^/api/(.*)/(.*) api.php?$1=$2 last;
+		rewrite ^/api/(.*)/(.*) api.hh?$1=$2 last;
 	}
 
-	
 	location /dl/ {
 		internal;
 		root   /sites/cheat/internal;
@@ -33,4 +36,3 @@ server {
 	error_log /sites/cheat/logs/errors.log;
 	access_log /sites/cheat/logs/access.log;
 }
-

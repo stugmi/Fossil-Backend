@@ -18,7 +18,7 @@ class fossil
   private $db;
   public function __construct(): void
   {
-    include_once (__DIR__.'/../config.inc.php');
+    include_once (__DIR__.'/../config.inc.hh');
     try {
       $this->db = new PDO(HTP_DB, HTP_USER, HTP_PASS);
     } catch (PDOException $e) {
@@ -144,7 +144,7 @@ class fossil
     $do->execute();
     $result = $do->fetchAll(PDO::FETCH_CLASSTYPE);
 
-    // Making sure this is setup before php freaks out
+    // Making sure this is setup before hhvm freaks out
     $time = date("D M, Y H:i:s", strtotime("now"));
     $userIP = inet_pton($_SERVER['REMOTE_ADDR']);
     $userAgent = $_SERVER['HTTP_USER_AGENT'] ?: "N/A";
