@@ -3,36 +3,47 @@ include_once $_SERVER["DOCUMENT_ROOT"].'/includes/includes.php';
 new loadClasses("main");
 
 $fossil = new fossil();
-$api = $_GET;
 
-switch (TRUE) {
+if (isset($_GET['action'])) {
+  $page = 'api';
+  $api = $_GET;
+} else if (isset($_GET['panel'])) {
+  $page = 'panel';
+  $api = $_GET;
+} else {
+  die("Code: 404");
+}
 
-  case $api['panel']:
+switch ($page) {
 
-    switch ($api['panel']) {
+  case 'panel':
+
+    switch ($api["panel"]) {
 
       case "login":
         if ($fossil->userLogin($_POST['username'], $_POST['password'])) {
-          header("HTTP/1.1 302 Moved Temporarily");
+          header("Code: 302");
           header("Location: ../../../SQU/");
         } else {
-          header("HTTP/1.1 302 Moved Temporarily");
+          header("Code: 302");
           header("Location: ../../../SQU/index.php#fail");
         }
         break;
 
       case "logout":
-        echo $fossil->userLogout();
+        session_destroy();
+        header("Code: 200");
+        header("Location: ../../../SQU/");
         break;
 
       default:
-        header("HTTP/1.0 405 Method Not Allowed");
+        header("Code: 405");
         echo "I'm not sure if you know what you're doing.";
         break;
     }
     break;
 
-  case $api['action']:
+  case 'api':
 
     switch ($api['action']) {
 
@@ -50,6 +61,10 @@ switch (TRUE) {
         $fossil->cheatDownload("select_cheat", $api['hwid'], $api['plan']);
         break;
 
+      case "check_plan":
+        $fossil->cheatCheckPlan($api['hwid']);
+        break;
+
         // Config managment
       case "load":
         echo $fossil->userConfig("load", $api['hwid']);
@@ -64,7 +79,7 @@ switch (TRUE) {
         break;
 
       default:
-        header("HTTP/1.0 405 Method Not Allowed");
+        header("Code: 404");
         echo "404 action not found";
         break;
 
@@ -72,7 +87,7 @@ switch (TRUE) {
     break;
 
   default:
-    header("HTTP/1.0 405 Method Not Allowed");
+    header("Code: 405");
     echo "Ah bah ah, you didn't say magic word";
     break;
 

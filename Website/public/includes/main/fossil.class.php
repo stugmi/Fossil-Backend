@@ -1,6 +1,4 @@
 <?hh
-use GeoIp2\Database\Reader;
-
 /**
  * Class to handle almost if not everything regarding users of this service
  *
@@ -39,32 +37,32 @@ class fossil
   {
 
     $do =
-      $this->db->prepare("SELECT * FROM users WHERE Username = (:username)");
+      $this->db->prepare("SELECT * FROM users WHERE username = (:username)");
     $do->bindParam(":username", $username);
     $do->execute();
     $result = $do->fetch();
 
-    if (empty($result['Username'])){
+    if (empty($result['username'])){
       return FALSE;
     }
 
     // If user doesn't have a password but exist, set the password.
-    if(empty($result['Password'])){
-      $password = $result['Password'];
-      $do = $this->db->prepare("UPDATE users SET Password = (:password) WHERE Username = (:username)");
+    if(empty($result['password'])){
+      $do = $this->db->prepare("UPDATE users SET password = (:password) WHERE username = (:username)");
       $do->bindParam(":username", $username);
       $do->bindParam(":password", password_hash($password, PASSWORD_BCRYPT));
       $do->execute();
       return TRUE;
     }
 
-    if (password_verify($password, $result['Password'])) {
+    if (password_verify($password, $result['password'])) {
 
       // Dumb check for when the config wants to use it.
       if($panel){
-        $_SESSION['loggedIn'] = TRUE;
+        $_SESSION['loggedin'] = TRUE;
         $_SESSION['username'] = $username;
-        $_SESSION['hwid'] = "N/A" ?: $result['HWID'];
+        $_SESSION['id'] = $result['id'];
+        $_SESSION['hwid'] = $result['hwid'] ?: "N/A";
 
         return TRUE;
       }
@@ -83,12 +81,44 @@ class fossil
    * @param string $hwid
    * @return mixed
    */
+
+   // TODO: Make this properly, this is just a quick fix to make for the meantime
+   public function cheatCheckPlan(string $hwid): mixed {
+     $do =
+       $this->db
+         ->prepare("  SELECT
+                      	plans.expire,
+                      	cheats.plan_name,
+                      	cheats.plan_game
+                      FROM
+                      	plans
+                      INNER JOIN users ON plans.user_id = users.id
+                      INNER JOIN cheats ON plans.plan_id = cheats.plan_id
+                      WHERE
+                      	users.hwid = (:hwid)
+                      LIMIT 1
+                   ");
+     $do->bindParam(":hwid", $hwid);
+     $do->execute();
+     $result = $do->fetchAll(PDO::FETCH_ASSOC);
+     echo json_encode($result, JSON_PRETTY_PRINT);
+   }
+
+  /**
+   * Validate a user, if active return level of access.
+   * @param string $username
+   * @param string $password
+   * @param string $hwid
+   * @return mixed
+   */
   public function cheatLogin(string $username, string $password, string $hwid): string
   {
     // Verify that the account exist first
+    // Will also set password if first login
     $this->userLogin($username, $password, FALSE);
+
     $do =
-      $this->db // still not working completly but we are getting further
+      $this->db
         ->prepare(" SELECT
                       users.id         AS id,
                       users.username   AS username,
@@ -108,41 +138,34 @@ class fossil
                     INNER JOIN cheats ON plans.plan_id = cheats.plan_id
                     WHERE
                     	users.username = (:username)
-                ");
+                  ");
 
     $do->bindParam(":username", $username);
     $do->execute();
-    $result = $do->fetch();
+    $result = $do->fetchAll(PDO::FETCH_CLASSTYPE);
 
     // Making sure this is setup before php freaks out
     $time = date("D M, Y H:i:s", strtotime("now"));
     $userIP = inet_pton($_SERVER['REMOTE_ADDR']);
     $userAgent = $_SERVER['HTTP_USER_AGENT'] ?: "N/A";
     $plans = array();
-
-    foreach($result as $plan){
-      array_push($plans,
-                 $plan['plan_id'],
-                 $plan['plan_name'],
-                 $plan['expire']
-                );
-    }
+    $first_login = FALSE;
 
     // for new users
     if(!$result['0']['hwid']){
       $result['0']['hwid'] = $hwid;
-    }
-
-    if(!$result['0']['lastip']){
-      $result['0']['lastip'] = $userIP;
+      $first_login = TRUE;
     }
 
     if (!$result['0']['plan_id'] || time() > $result['0']['expire']) {
       // This nerd expired or got no cheat, throw him out.
       $do =
-        $this->db->prepare(
-          "UPDATE users SET status = (:status) WHERE id = (:id)",
-        );
+        $this->db
+            ->prepare(" UPDATE users
+                        SET status = (:status)
+                        WHERE id = (:id)
+                      ");
+
       $do->bindParam(":id", $result['0']['id']);
       $do->bindParam(":status", $result['0']['status']);
       $do->execute();
@@ -153,8 +176,9 @@ class fossil
 
     // Everything seems fine, let's return your account information and log your
     // login request, make sure you aren't a dirty account sharing cunt.
-    if($this->userAccountSharing($hwid, $userIP) === TRUE){
-      return header("Status: 403 Account sharing detected and logged please contact us to unlock your account");
+    if($first_login === FALSE && $this->userAccountSharing($result[0]['id'], $userIP) === TRUE){
+      header("Status: 403");
+      return "Account sharing detected and logged please contact us to unlock your account";
     }
 
     $do =
@@ -172,12 +196,19 @@ class fossil
     $do->bindParam(":lastip", $userIP);
     $do->execute();
 
+    foreach($result as $plan){
+          $plans[] = array( $plan['plan_id'],
+                            $plan['plan_name'],
+                            $plan['expire']
+                        );
+    }
+
     return json_encode(
       array(
         "launcher_version" => "10",
-        "hwid" => $result['0']['hwid'],
+        "hwid" => $result[0]['hwid'],
         "plans" => $plans,
-        "status" => $result['0']['Status']
+        "status" => $result[0]['status']
       ), JSON_PRETTY_PRINT
     );
 
@@ -190,17 +221,28 @@ class fossil
   * @param string $userIP
   * @return bool TRUE if sharing
   */
-  public function userAccountSharing(string $hwid, string $userIP): bool
+  public function userAccountSharing(string $user_id, string $userIP): mixed
   {
 
-    $do = $this->db->prepare("SELECT * FROM users WHERE HWID = (:hwid)");
-    $do->bindParam(":hwid", $hwid);
+    $do =
+      $this->db
+        ->prepare(" SELECT
+                      id,
+                      username,
+                      lastip,
+                      hwid
+                    FROM
+                      users
+                    WHERE
+                    	id = (:user_id)
+                  ");
+    $do->bindParam(":user_id", $user_id);
     $do->execute();
     $result = $do->fetch();
 
     // Convert binary to IP from DB
     $userIP = inet_ntop($userIP);
-    $lastIP = inet_ntop($result['Lastip']);
+    $lastIP = inet_ntop($result['lastip']);
 
     $time = date("D M, Y H:i:s", strtotime("now"));
     $userAgent = $_SERVER['HTTP_USER_AGENT'] ?: "N/A";
@@ -211,18 +253,18 @@ class fossil
         array(
           "Date" => $time,
           "IP Adress" => $userIP,
-          "Username" => $result['Username'],
-          "HWID" => $result['HWID'],
+          "Username" => $result['username'],
+          "HWID" => $result['hwid'],
           "User-Agent" => $_SERVER['HTTP_USER_AGENT'],
         ),
         JSON_PRETTY_PRINT,
       );
       $do =
         $this->db->prepare(
-          "UPDATE users SET Failedip = (:Failedip) WHERE HWID = (:hwid)",
+          "UPDATE users SET failedip = (:failedip) WHERE id = (:user_id)",
         );
-      $do->bindParam(":hwid", $hwid);
-      $do->bindParam(":Failedip", $Failedip);
+      $do->bindParam(":user_id", $user_id);
+      $do->bindParam(":failedip", $Failedip);
       $do->execute();
 
       return TRUE;    //  User is sharing
@@ -293,26 +335,27 @@ class fossil
     $userIP = $_SERVER['REMOTE_ADDR'];
     $userAgent = $_SERVER['HTTP_USER_AGENT'] ?: "N/A";
 
-    $do = $this->db->prepare("SELECT * FROM users WHERE HWID = (:hwid)");
+    $do = $this->db->prepare("SELECT * FROM users WHERE hwid = (:hwid)");
     $do->bindParam(":hwid", $hwid);
     $do->execute();
     $result = $do->fetch();
 
-    if (!$result['Status']) {
+    if (!$result['status']) {
       return "yooo bruh this nignog aint on the list, get the bouncers.";
+    }
+
+    if (empty($result['config'])) {
+      $config  = file_get_contents(
+        $_SERVER["DOCUMENT_ROOT"]."/assets/default.config.json"
+      );
+      } else {
+        $config = $result['config'];
     }
 
     switch ($action) {
 
       case "load":
-
-        if (empty($result['Config'])) {
-          return file_get_contents(
-            $_SERVER["DOCUMENT_ROOT"]."/assets/default.config.json",
-          );
-        }
-        return $result['Config'];
-
+        return $config;
         break;
 
       case "save":
@@ -323,7 +366,7 @@ class fossil
           $FailedConfig = json_encode(
             array(
               "Date" => $time,
-              "HWID" => $result['HWID'],
+              "HWID" => $result['hwid'],
               "IP Adress" => $userIP,
               "Request-Data" => $data,
               "User-Agent" => $userAgent,
@@ -335,20 +378,20 @@ class fossil
           $do =
             $this->db
               ->prepare(
-                "UPDATE users SET FailedConfig = (:Failedconfig) WHERE HWID = (:hwid)",
+                "UPDATE users SET failedconfig = (:failedconfig) WHERE id = (:hwid)",
               );
           $do->bindParam(":hwid", $hwid);
-          $do->bindParam(":Failedconfig", $FailedConfig);
+          $do->bindParam(":failedconfig", $FailedConfig);
           $do->execute();
 
           echo $FailedConfig;
-          return "AhAhahaHAhaha no. all your shit is  logged, get out.";
+          return "AhAhahaHAhaha no. all your shit is logged, get out.";
 
         }
 
         $do =
           $this->db->prepare(
-            "UPDATE users SET Config = (:config) WHERE HWID = (:hwid)",
+            "UPDATE users SET config = (:config) WHERE id = (:hwid)",
           );
         $do->bindParam(":hwid", $hwid);
         $do->bindParam(":config", $data);
@@ -357,12 +400,7 @@ class fossil
         break;
 
       case "format":
-        if (empty($result['Config'])) {
-          $result['Config'] = file_get_contents(
-            $_SERVER["DOCUMENT_ROOT"]."/assets/default.config.json",
-          );
-        }
-        $ugly = json_decode($result['Config'], TRUE);
+        $ugly = json_decode($config, TRUE);
         $pretty = json_encode(
           array(
             "Visuals" => array(

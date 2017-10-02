@@ -10,6 +10,7 @@ body {
     width: 960px;
     text-align: left;
 }
+
 h1 {
     text-transform: uppercase;
     font-weight: bold;
@@ -28,9 +29,58 @@ h1 {
 #config {
   width: 50%;
   background-color: #0f0d12;
-  padding: 2px 33px 20px 20px;
   margin: auto;
   border-radius: 6px;
+}
+
+#config-header {
+  padding-left: 20px;
+  padding-top: 1px;
+}
+#config-content {
+    padding: 2px 33px 20px 20px;
+}
+
+#userInfo {
+  background: rgb(15, 13, 18);
+  padding: 20px;
+  width: 15%;
+  position:absolute;
+  font-size: 12px;
+}
+
+#userInfo h5 {
+  margin: auto;
+}
+
+#userDetail {
+  color: #72767d;
+}
+
+.userDetail {
+  padding-bottom: 15px;
+}
+
+#userLabel {
+  margin-bottom: 10px;
+}
+
+#logout {
+  top: 95%;
+  left: 90%;
+  position: fixed;
+}
+
+#login {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+}
+
+#login input {
+    margin-bottom: 15px;
+    width: 200px;
 }
 
 input[type='text'],input[type='password'] {
@@ -93,24 +143,6 @@ i {
 .right {
     transform: rotate(-45deg);
     -webkit-transform: rotate(-45deg);
-}
-
-#logout {
-  top: 15px;
-  left: 15px;
-  position: fixed;
-}
-
-#login {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%,-50%);
-}
-
-#login input {
-    margin-bottom: 15px;
-    width: 200px;
 }
 
 input[type="submit"] {
