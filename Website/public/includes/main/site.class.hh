@@ -20,7 +20,7 @@ class site {
   private $db;
   public function __construct(): void
   {
-    include_once (__DIR__.'/../config.inc.php');
+    include_once (__DIR__.'/../config.inc.hh');
     try {
       $this->db = new PDO(HTP_DB, HTP_USER, HTP_PASS);
     } catch (PDOException $e) {
@@ -151,7 +151,7 @@ class site {
     print ("
      <div id='login'>
        <form method='post' action='../api/panel/login'>
-         <input type='text' name='username' placeholder='Username...' />
+         <input type='text' name='username' autofocus placeholder='Username...' />
          <br />
          <input
            type='password'

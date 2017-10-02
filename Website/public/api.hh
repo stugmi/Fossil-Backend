@@ -1,5 +1,5 @@
 <?hh
-include_once $_SERVER["DOCUMENT_ROOT"].'/includes/includes.php';
+include_once $_SERVER["DOCUMENT_ROOT"].'/includes/includes.hh';
 new loadClasses("main");
 
 $fossil = new fossil();
@@ -26,7 +26,7 @@ switch ($page) {
           header("Location: ../../../SQU/");
         } else {
           header("Code: 302");
-          header("Location: ../../../SQU/index.php#fail");
+          header("Location: ../../../SQU/#fail");
         }
         break;
 

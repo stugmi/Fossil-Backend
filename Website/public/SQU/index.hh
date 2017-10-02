@@ -1,7 +1,7 @@
 <?hh
 
 // Initial setup for all classes
-include_once $_SERVER["DOCUMENT_ROOT"].'/includes/includes.php';
+include_once $_SERVER["DOCUMENT_ROOT"].'/includes/includes.hh';
 new loadClasses("main");
 
 $site = new site();
