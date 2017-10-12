@@ -181,21 +181,6 @@ class fossil
       return "Account sharing detected and logged please contact us to unlock your account";
     }
 
-    $do =
-      $this->db->prepare("UPDATE users SET
-                            password = (:password),
-                            lastlogin = (:lastlogin),
-                            lastip = (:lastip),
-                            hwid = (:hwid)
-                          WHERE id = (:id)
-                        ");
-    $do->bindParam(":id", $result['0']['id']);
-    $do->bindParam(":hwid", $hwid);
-    $do->bindParam(":password", password_hash($password, PASSWORD_BCRYPT));
-    $do->bindParam(":lastlogin", $time);
-    $do->bindParam(":lastip", $userIP);
-    $do->execute();
-
     foreach($result as $plan){
           $plans[] = array( $plan['plan_id'],
                             $plan['plan_name'],
